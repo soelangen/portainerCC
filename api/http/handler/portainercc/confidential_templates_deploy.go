@@ -39,6 +39,7 @@ type ConfTempDeployParams struct {
 	Inputs map[string]string
 }
 
+// Receives the http request when we create a confidential docker container through its template
 func (handler *Handler) deployConfidentialTemplate(w http.ResponseWriter, r *http.Request) *httperror.HandlerError {
 	var params ConfTempDeployParams
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -47,12 +48,14 @@ func (handler *Handler) deployConfidentialTemplate(w http.ResponseWriter, r *htt
 		return httperror.BadRequest("request body malefomred", err)
 	}
 
-	//check if all values are set
+	//-----------Check received Values-----------------
+	// Check if the template id that was received is stored in the database
 	template, err := handler.DataStore.ConfidentialTemplate().ConfidentialTemplate(portainer.ConfidentialTemplateId(params.Id))
 	if err != nil {
 		return httperror.BadRequest("invalid template id", err)
 	}
 
+	// Validating that the required template fields of the received templates are the same as in the database
 	for _, val := range template.Inputs {
 		if _, ok := params.Inputs[val.Label]; !ok {
 			return httperror.BadRequest("request body malefomred", fmt.Errorf("values missing."))
@@ -73,6 +76,7 @@ func (handler *Handler) deployConfidentialTemplate(w http.ResponseWriter, r *htt
 		return httperror.InternalServerError("could not create docker client", err)
 	}
 
+	// ------------------- Start image creation ----------------
 	//pull image and get mr enclave mr signer
 	res, err := client.ImagePull(r.Context(), template.ImageName, types.ImagePullOptions{})
 	if err != nil {
